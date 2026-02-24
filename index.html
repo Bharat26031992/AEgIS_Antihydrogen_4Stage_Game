@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEgIS: Antimatter Gravity</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root { --term-green: #39ff14; --bg: #050508; }
+        body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--term-green); font-family: 'Space Mono', monospace; display: flex; justify-content: center; align-items: center; overflow: hidden; user-select: none; }
+        
+        body::after { content: " "; display: block; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none; }
+        
+        #game-wrapper { position: relative; width: 900px; height: 600px; border: 2px solid var(--term-green); box-shadow: 0 0 30px rgba(57, 255, 20, 0.2); background: #0a0a0a; z-index: 1; cursor: crosshair; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px; box-sizing: border-box; z-index: 5; }
+        .hidden { display: none !important; }
+        
+        h1 { font-family: 'VT323', monospace; font-size: 3.5rem; margin: 0 0 10px 0; color: #fff; text-shadow: 0 0 10px var(--term-green); }
+        p { font-size: 1.1rem; line-height: 1.5; color: #ddd; max-width: 700px; margin-bottom: 20px; }
+        .highlight { color: var(--term-green); font-weight: bold; }
+        
+        button { background: #111; color: var(--term-green); border: 2px solid var(--term-green); font-family: 'VT323', monospace; font-size: 1.8rem; padding: 10px 30px; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        button:hover { background: var(--term-green); color: #000; box-shadow: 0 0 20px var(--term-green); }
+        
+        .hud { position: absolute; top: 15px; left: 20px; font-size: 1.1rem; z-index: 2; pointer-events: none; text-shadow: 1px 1px #000; font-weight: bold;}
+        .hud-right { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 2; pointer-events: none; font-size: 1.1rem; text-shadow: 1px 1px #000; font-weight: bold;}
+        
+        table { width: 90%; border-collapse: collapse; font-size: 1.2rem; margin-top: 10px; color: #fff; font-family: 'VT323', monospace;}
+        th, td { border-bottom: 1px solid #1a5910; padding: 5px; text-align: center; }
+        th { color: var(--term-green); }
+        input { background: #000; color: #00ffff; border: 2px solid #00ffff; font-family: 'VT323', monospace; font-size: 1.5rem; width: 150px; text-align: center; text-transform: uppercase; outline: none; }
+
+        #detuning-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 30px; height: 200px; border: 2px solid #00d4ff; background: rgba(0,0,0,0.5); z-index: 2; }
+        #detuning-target { position: absolute; width: 100%; height: 20px; background: rgba(57, 255, 20, 0.5); border: 1px solid #39ff14; transition: top 0.2s; }
+        #detuning-player { position: absolute; width: 140%; left: -20%; height: 4px; background: #fff; box-shadow: 0 0 10px #fff; pointer-events: none; }
+
+        /* Notebook Styles */
+        #notebook-screen { background: rgba(5, 5, 10, 0.95); border: 4px double #00ffff; align-items: flex-start; text-align: left; overflow-y: auto;}
+        .glossary-term { color: #00ffff; font-family: 'VT323', monospace; font-size: 1.8rem; border-bottom: 1px dashed #00ffff; margin-top: 15px; display: inline-block;}
+        .glossary-def { color: #ccc; font-size: 1rem; line-height: 1.4; margin-top: 5px; margin-left: 15px;}
+        
+        /* Achievement Badges */
+        #achievements-container { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+        .badge { background: #111; border: 2px solid #ffcc00; color: #ffcc00; padding: 5px 15px; font-family: 'VT323', monospace; font-size: 1.2rem; border-radius: 4px; box-shadow: 0 0 10px rgba(255, 204, 0, 0.3); animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 5px #ffcc00; } 50% { box-shadow: 0 0 15px #ffcc00; } 100% { box-shadow: 0 0 5px #ffcc00; } }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+    
+    <div id="detuning-ui" class="hidden">
+        <div id="detuning-target" style="top: 0%;"></div>
+        <div id="detuning-player" style="top: 50%;"></div>
+        <div style="position: absolute; left: -140px; top: 50%; transform: translateY(-50%); color: #00d4ff; font-family: 'VT323'; font-size: 1.2rem; text-align: right; text-shadow: 1px 1px #000;">
+            LASER<br>DETUNING<br><span style="font-size: 0.8rem; color:#aaa;">(SCROLL WHEEL)</span>
+        </div>
+    </div>
+
+    <div id="hud" class="hud hidden">
+        PHASE: <span id="phase-disp">1</span>/4 &nbsp;|&nbsp; TIME LEFT: <span id="time-disp" style="color:#00ffff;">60.00</span>s<br>
+        EQUIP: <span id="equip-disp" style="color:#9d00ff;">EM TRAP VACUUM</span><br>
+        INTEGRITY: <span id="lives-disp" style="color:#ff3e3e; letter-spacing: 2px;">♥♥♥♥♥</span><br>
+        <span id="hazard-warning" style="color:#ff3e3e; font-family:'VT323'; font-size: 1.5rem;"></span>
+    </div>
+    <div id="hud-right" class="hud-right hidden">
+        SCORE: <span id="score" style="color:#00ffff;">0</span><br>
+        PROGRESS: <span id="targets">0</span> / <span id="req-targets">15</span><br>
+        CAPTURED p̄: <span id="pbar-count" style="color:#ff3e3e;">0</span><br>
+        <span style="font-size: 1rem; color: #888;">[TAB] LAB NOTEBOOK</span>
+    </div>
+
+    <div id="menu-screen" class="overlay">
+        <h1>AEgIS: GRAVITY LAB</h1>
+        <p>
+            Synthesize Antihydrogen ($\bar{H}$) and measure its gravitational free-fall using the Moire Deflectometer. Every particle counts! Resource management is critical.<br><br>
+            <span class="highlight">CONTROLS:</span><br>
+            [W A S D] - Move Researcher<br>
+            [MOUSE] - Aim & [LEFT CLICK] - Activate Equipment<br>
+            [SCROLL WHEEL] - Adjust Laser Frequency (Phase 3)<br>
+            [TAB] - Open Interactive Lab Notebook
+        </p>
+        <button onclick="startGame()">[ ENTER LAB ]</button>
+    </div>
+
+    <div id="notebook-screen" class="overlay hidden">
+        <h1 style="color: #00ffff; border-bottom: 2px solid; width: 100%; text-align: left;">LAB NOTEBOOK // DATABANK</h1>
+        
+        <div class="glossary-term">Penning-Malmberg Trap</div>
+        <div class="glossary-def">An electromagnetic device that uses a strong homogeneous magnetic field to confine charged particles radially, and a quadrupolar electric field to confine them axially.</div>
+        
+        <div class="glossary-term">Antiproton (p̄)</div>
+        <div class="glossary-def">The antimatter counterpart to the proton. It has a negative charge. Delivered to AEgIS by CERN's Antiproton Decelerator (AD).</div>
+
+        <div class="glossary-term">Positronium (Ps)</div>
+        <div class="glossary-def">An exotic, highly unstable atom consisting of an electron and a positron orbiting each other. Used as a charge-exchange intermediate to create Antihydrogen.</div>
+
+        <div class="glossary-term">Alexandrite Laser Cooling (1S-2P)</div>
+        <div class="glossary-def">A technique where laser light is tuned slightly below the resonant frequency of an atom (Doppler detuning). As the atom moves toward the laser, it absorbs a photon, slowing its kinetic energy.</div>
+
+        <div class="glossary-term">Moire Deflectometer</div>
+        <div class="glossary-def">An apparatus containing fine material gratings. By measuring the slight shift in the interference pattern created by particles passing through, physicists can deduce the vertical drop caused by gravity.</div>
+
+        <button onclick="toggleNotebook()" style="margin-top: 30px;">[ CLOSE NOTEBOOK ]</button>
+    </div>
+
+    <div id="info-screen" class="overlay hidden">
+        <h1 id="info-title" style="color: #39ff14;">PHASE COMPLETE</h1>
+        <h2 style="color:#00ffff; margin: 0 0 10px 0;">TIME BONUS: +<span id="time-bonus-disp">0</span></h2>
+        <p id="info-desc" style="text-align: left; background: rgba(255,255,255,0.05); padding: 15px; border-left: 4px solid #39ff14;"></p>
+        <button onclick="resumeGame()">[ COMMENCE NEXT PHASE ]</button>
+    </div>
+
+    <div id="end-screen" class="overlay hidden">
+        <h1 id="end-title" style="color: #00ffff; font-size: 2.5rem; margin-bottom: 5px;">MEASUREMENT SUCCESSFUL</h1>
+        <p id="end-desc" style="margin-bottom: 5px;">Gravity pulls antimatter DOWN! Calculated average $\bar{g}$ based on ToF:</p>
+        <h2 id="final-g-disp" style="color: #39ff14; font-size: 2.5rem; margin: 5px 0;">g = 9.81 m/s²</h2>
+        
+        <canvas id="plotCanvas" width="400" height="150" style="background: #111; border: 1px solid #444; margin-bottom: 10px;"></canvas>
+        
+        <div id="achievements-container"></div>
+
+        <div id="input-section" class="hidden" style="margin-top: 15px;">
+            <span style="font-family: 'VT323'; font-size: 1.5rem;">NEW RECORD! ID: </span>
+            <input type="text" id="initials" maxlength="8" placeholder="________">
+            <button onclick="saveScore()" style="font-size: 1.2rem; padding: 5px 15px;">[ UPLOAD ]</button>
+        </div>
+
+        <table id="leaderboard" class="hidden">
+            <thead><tr><th>RANK</th><th>ID</th><th>SCORE</th><th>MEASURED g</th></tr></thead>
+            <tbody id="lb-body"></tbody>
+        </table>
+        
+        <button id="restart-btn" class="hidden" onclick="location.reload()">[ RESTART EXPERIMENT ]</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // --- AI ANNOUNCER (Web Speech API) ---
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); 
+            let msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1.1; // Slightly fast
+            msg.pitch = 0.8; // Deeper, robotic tone
+            window.speechSynthesis.speak(msg);
+        }
+    }
+
+    // --- AUDIO SYSTEM ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let actx, bgmInterval;
+
+    function initAudio() {
+        if (!actx) { actx = new AudioContext(); }
+        if (actx.state === 'suspended') actx.resume();
+    }
+
+    function playTone(freq, type, duration, vol=0.05) {
+        if (!actx) return;
+        let osc = actx.createOscillator(); let gain = actx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, actx.currentTime);
+        gain.gain.setValueAtTime(vol, actx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + duration);
+        osc.connect(gain); gain.connect(actx.destination);
+        osc.start(); osc.stop(actx.currentTime + duration);
+    }
+
+    let beamOsc = null, beamGain = null;
+    function startBeamSound(type) {
+        if(!actx || beamOsc) return;
+        beamOsc = actx.createOscillator(); beamGain = actx.createGain();
+        beamOsc.type = type === 'vacuum' ? 'triangle' : 'sawtooth';
+        beamOsc.frequency.setValueAtTime(type === 'vacuum' ? 200 : 800, actx.currentTime);
+        beamGain.gain.setValueAtTime(0.03, actx.currentTime);
+        beamOsc.connect(beamGain); beamGain.connect(actx.destination);
+        beamOsc.start();
+    }
+    function stopBeamSound() {
+        if(beamOsc && actx) {
+            beamGain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.1);
+            try { beamOsc.stop(actx.currentTime + 0.1); } catch(e){} 
+            beamOsc = null;
+        }
+    }
+
+    function startBGM() {
+        if (bgmInterval) clearInterval(bgmInterval);
+        const notes = [220, 261.63, 329.63, 261.63, 196, 220, 293.66, 329.63];
+        let i = 0;
+        bgmInterval = setInterval(() => {
+            if(isPlaying && !isPaused && !isGameOver) {
+                playTone(notes[i % notes.length] / (currentPhase === 4 ? 1 : 2), currentPhase === 4 ? 'square' : 'triangle', 0.15, 0.015);
+                i++;
+            }
+        }, currentPhase === 4 ? 150 : 250);
+    }
+
+    const sfx = {
+        capture: () => playTone(600, 'sine', 0.2, 0.05),
+        shoot: () => playTone(1200, 'square', 0.1, 0.03),
+        pop: () => playTone(400, 'triangle', 0.1, 0.05),
+        freeze: () => playTone(1500, 'sine', 0.3, 0.05),
+        combine: () => { playTone(300, 'square', 0.2, 0.05); setTimeout(()=>playTone(600, 'sawtooth', 0.4, 0.05), 100); },
+        tof: () => { playTone(800, 'square', 0.1, 0.08); setTimeout(()=>playTone(1200, 'square', 0.2, 0.08), 100); },
+        hurt: () => playTone(150, 'sawtooth', 0.4, 0.05),
+        error: () => playTone(100, 'square', 0.1, 0.05),
+        oneup: () => { playTone(400, 'square', 0.1, 0.05); setTimeout(()=>playTone(600, 'square', 0.2, 0.05), 100); },
+        win: () => { playTone(440, 'square', 0.2); setTimeout(()=>playTone(554, 'square', 0.2), 200); setTimeout(()=>playTone(659, 'square', 0.4), 400); }
+    };
+
+    // --- GAME STATE & TRACKING ---
+    let isPlaying = false, isPaused = false, isGameOver = false, frameCount = 0;
+    let score = 0, levelTime = 0, totalTime = 0;
+    const TIME_LIMIT = 60; 
+    let currentPhase = 1, phaseProgress = 0;
+    let lives = 5, maxLives = 5;
+    let phaseTargets = [0, 15, 15, 15, 15]; 
+    let trappedPbars = 0;
+    
+    // Visual FX state
+    let shakeTime = 0, shakeMag = 0;
+    
+    // Physics & Detuning State
+    let laserDetuning = 50, targetDetuning = 50;
+    let gMeasurements = [];
+    
+    // Meta Tracking for Achievements
+    let tookDamageThisRun = false;
+    let detuningErrors = 0;
+    let isNotebookOpen = false;
+
+    const phaseData = [
+        {},
+        {
+            title: "PHASE 1 COMPLETE",
+            text: "Antiprotons ($\\bar{p}$) captured.<br><br><b>NEXT: POSITRONIUM PRODUCTION</b><br>Equip Positron ($e^+$) Emitter. Shoot porous silica targets to make Positronium (Ps).<br><b>HAZARDS:</b> Spinning Anomalies and Gamma Rays ($\\gamma$)!"
+        },
+        {
+            title: "PHASE 2 COMPLETE",
+            text: "Positronium (Ps) atoms generated.<br><br><b>NEXT: DOPPLER LASER COOLING</b><br>Equip <b>Alexandrite Cooling Laser</b>. Use your <b>Mouse Scroll Wheel</b> to match the Laser Detuning frequency with the temperature of the Ps atoms. Watch out for Thermal Spikes!"
+        },
+        {
+            title: "PHASE 3 COMPLETE",
+            text: "Positronium cloud is cryogenically frozen.<br><br><b>NEXT: TIME OF FLIGHT MEASUREMENT</b><br>Shoot trapped Antiprotons into the Ps atoms to form Antihydrogen ($\\bar{H}$).<br><b>WARNING:</b> You ONLY have the Ps atoms you cooled. Make every shot count! Avoid Residual Gas!"
+        }
+    ];
+
+    const keys = { w: false, a: false, s: false, d: false };
+    const mouse = { x: canvas.width/2, y: canvas.height/2, down: false };
+
+    window.addEventListener('keydown', e => {
+        initAudio();
+        if(e.code === 'KeyW' || e.key === 'w') keys.w = true; 
+        if(e.code === 'KeyA' || e.key === 'a') keys.a = true;
+        if(e.code === 'KeyS' || e.key === 's') keys.s = true; 
+        if(e.code === 'KeyD' || e.key === 'd') keys.d = true;
+        
+        if(e.code === 'Tab' || e.key === 'Tab') {
+            e.preventDefault();
+            toggleNotebook();
+        }
+    });
+    window.addEventListener('keyup', e => {
+        if(e.code === 'KeyW' || e.key === 'w') keys.w = false; 
+        if(e.code === 'KeyA' || e.key === 'a') keys.a = false;
+        if(e.code === 'KeyS' || e.key === 's') keys.s = false; 
+        if(e.code === 'KeyD' || e.key === 'd') keys.d = false;
+    });
+    
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left; mouse.y = e.clientY - rect.top;
+    });
+    canvas.addEventListener('mousedown', () => { initAudio(); mouse.down = true; });
+    canvas.addEventListener('mouseup', () => { mouse.down = false; stopBeamSound(); });
+    
+    window.addEventListener('wheel', e => {
+        if (currentPhase === 3 && isPlaying && !isPaused) {
+            laserDetuning += e.deltaY > 0 ? 5 : -5;
+            laserDetuning = Math.max(0, Math.min(100, laserDetuning));
+            document.getElementById('detuning-player').style.top = `${100 - laserDetuning}%`;
+        }
+    });
+
+    function triggerShake(duration, magnitude) {
+        shakeTime = duration;
+        shakeMag = magnitude;
+    }
+
+    function toggleNotebook() {
+        if (!isPlaying || isGameOver) return;
+        isNotebookOpen = !isNotebookOpen;
+        if (isNotebookOpen) {
+            isPaused = true; stopBeamSound();
+            document.getElementById('notebook-screen').classList.remove('hidden');
+            speak("Accessing lab databank.");
+        } else {
+            isPaused = false;
+            document.getElementById('notebook-screen').classList.add('hidden');
+        }
+    }
+
+    let entities = [], bullets = [], particles = [], floatingTexts = [], hBars = [];
+
+    function addFloatingText(text, x, y, color) { floatingTexts.push({ text: text, x: x, y: y, color: color, life: 60 }); }
+
+    const player = {
+        x: 450, y: 300, size: 24, speed: 4.5, cooldown: 0, invinc: 0,
+        isFiringBeam: false, isCapturing: false, isCooling: false,
+
+        draw() {
+            if (this.invinc > 0 && frameCount % 10 < 5) return; 
+
+            let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+            ctx.save(); ctx.translate(this.x, this.y);
+            
+            if (this.isFiringBeam) {
+                if (currentPhase === 1) {
+                    let alpha = this.isCapturing ? 0.8 : 0.3;
+                    let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 300);
+                    grad.addColorStop(0, `rgba(157, 0, 255, ${alpha})`); grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 300, angle - Math.PI/4, angle + Math.PI/4); ctx.fill();
+                    
+                    ctx.strokeStyle = `rgba(157, 0, 255, ${alpha + 0.2})`; ctx.lineWidth = 2;
+                    let ringOffset = (frameCount * 3) % 40;
+                    for(let r = ringOffset || 1; r < 300; r += 40) { ctx.beginPath(); ctx.arc(0, 0, r, angle - Math.PI/4, angle + Math.PI/4); ctx.stroke(); }
+                } else if (currentPhase === 3) {
+                    let detuningMatch = Math.abs(laserDetuning - targetDetuning) <= 15;
+                    let color = detuningMatch ? 'rgba(0, 212, 255,' : 'rgba(100, 100, 100,';
+                    let alpha = this.isCooling && detuningMatch ? 0.9 : 0.4;
+                    
+                    let grad = ctx.createRadialGradient(0, 0, 20, 0, 0, 350);
+                    grad.addColorStop(0, `${color} ${alpha})`); grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 350, angle - Math.PI/6, angle + Math.PI/6); ctx.fill();
+
+                    ctx.strokeStyle = detuningMatch ? '#fff' : '#666'; ctx.lineWidth = this.isCooling ? 4 : 2;
+                    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle)*350, Math.sin(angle)*350); ctx.stroke();
+                    ctx.strokeStyle = detuningMatch ? '#00ffff' : '#444'; ctx.lineWidth = this.isCooling ? 8 : 4; ctx.stroke();
+                }
+            }
+
+            ctx.fillStyle = '#444'; ctx.fillRect(-15, -15, 30, 30);
+            ctx.fillStyle = '#ff3e3e'; ctx.fillRect(-10, -10, 20, 20 * (Math.min(trappedPbars, 15)/15)); 
+            
+            ctx.rotate(angle);
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffcc99'; ctx.beginPath(); ctx.arc(4, 0, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#222'; ctx.fillRect(8, -8, 6, 16); ctx.fillStyle = '#00ffff'; ctx.fillRect(10, -6, 2, 12);
+            
+            ctx.fillStyle = '#555';
+            if (currentPhase === 1) { ctx.fillRect(10, 10, 20, 10); ctx.fillStyle = '#9d00ff'; ctx.fillRect(25, 6, 8, 16); } 
+            if (currentPhase === 2) { ctx.fillRect(10, 10, 25, 6); ctx.fillStyle = '#ffcc00'; ctx.fillRect(30, 8, 8, 10); } 
+            if (currentPhase === 3) { ctx.fillRect(10, 10, 30, 4); ctx.fillStyle = '#00d4ff'; ctx.fillRect(35, 8, 10, 8); } 
+            if (currentPhase === 4) { ctx.fillRect(10, 10, 25, 12); ctx.fillStyle = '#ff3e3e'; ctx.beginPath(); ctx.arc(35, 16, 8, 0, Math.PI*2); ctx.fill(); }
+            ctx.restore();
+        },
+
+        update() {
+            if(keys.w && this.y > 60) this.y -= this.speed;
+            if(keys.s && this.y < canvas.height - 60) this.y += this.speed;
+            if(keys.a && this.x > 30) this.x -= this.speed;
+            if(keys.d && this.x < canvas.width - 30) this.x += this.speed;
+
+            if(this.cooldown > 0) this.cooldown--;
+            if(this.invinc > 0) this.invinc--;
+
+            this.isFiringBeam = false; this.isCapturing = false; this.isCooling = false;
+            let angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+
+            if(mouse.down && !isPaused && !isGameOver) {
+                if (currentPhase === 1) {
+                    this.isFiringBeam = true; startBeamSound('vacuum');
+                    this.vacuumEntities(angle, 300, Math.PI/2);
+                } else if (currentPhase === 2) {
+                    if(this.cooldown === 0) {
+                        sfx.shoot();
+                        bullets.push({ x: this.x + Math.cos(angle)*25, y: this.y + Math.sin(angle)*25, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15, type: 'positron' });
+                        this.cooldown = 10; 
+                    }
+                } else if (currentPhase === 3) {
+                    this.isFiringBeam = true; startBeamSound('laser');
+                    this.coolEntities(angle, 350, Math.PI/3);
+                } else if (currentPhase === 4) {
+                    if(this.cooldown === 0 && trappedPbars > 0) {
+                        sfx.shoot();
+                        bullets.push({ x: this.x + Math.cos(angle)*25, y: this.y + Math.sin(angle)*25, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, type: 'pbar' });
+                        trappedPbars--; this.cooldown = 15; 
+                    }
+                }
+            } else { stopBeamSound(); }
+        },
+
+        vacuumEntities(angle, length, width) {
+            for (let i = entities.length - 1; i >= 0; i--) {
+                let e = entities[i];
+                if (e.type !== 'pbar_creature') continue;
+
+                let dx = e.x - this.x; let dy = e.y - this.y;
+                let dist = Math.hypot(dx, dy); let eAngle = Math.atan2(dy, dx);
+                let angleDiff = eAngle - angle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI*2; while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
+
+                if (dist < length && Math.abs(angleDiff) < width/2) {
+                    this.isCapturing = true;
+                    e.x -= Math.cos(eAngle) * 5; e.y -= Math.sin(eAngle) * 5;
+                    if (dist < 35) {
+                        sfx.capture(); trappedPbars++; phaseProgress++; score+= 50;
+                        addFloatingText("CAPTURED!", this.x, this.y - 30, '#ff3e3e');
+                        createExplosion(e.x, e.y, '#ff3e3e');
+                        entities.splice(i, 1); 
+                    }
+                }
+            }
+        },
+
+        coolEntities(angle, length, width) {
+            let detuningMatch = Math.abs(laserDetuning - targetDetuning) <= 15;
+            if (!detuningMatch && frameCount % 15 === 0) { sfx.error(); detuningErrors++; }
+
+            for (let i = 0; i < entities.length; i++) {
+                let e = entities[i];
+                if (e.type !== 'positronium' || e.cooled) continue;
+
+                let dx = e.x - this.x; let dy = e.y - this.y;
+                let dist = Math.hypot(dx, dy); let eAngle = Math.atan2(dy, dx);
+                let angleDiff = eAngle - angle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI*2; while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
+
+                if (dist < length && Math.abs(angleDiff) < width/2 && detuningMatch) {
+                    this.isCooling = true;
+                    e.vx *= 0.92; e.vy *= 0.92; 
+                    if (frameCount % 4 === 0) particles.push({ x: e.x, y: e.y, vx: 0, vy: -2, life: 1, color: '#00d4ff' });
+
+                    if (Math.hypot(e.vx, e.vy) < 0.15) {
+                        e.vx = 0; e.vy = 0; e.cooled = true;
+                        sfx.freeze(); score += 100;
+                        addFloatingText("FROZEN!", e.x, e.y - 20, '#00d4ff');
+                        phaseProgress++; 
+                    }
+                }
+            }
+        }
+    };
+
+    function spawnPhaseEntities() {
+        if (frameCount % 400 === 0 && lives < maxLives && Math.random() > 0.4) {
+            entities.push({ type: 'heart', x: Math.random() * (canvas.width - 100) + 50, y: Math.random() * (canvas.height - 100) + 50, life: 600 });
+        }
+
+        if (currentPhase === 1) {
+            let pbars = entities.filter(e => e.type === 'pbar_creature').length;
+            if (pbars < 5 && phaseProgress + pbars < phaseTargets[1]) {
+                entities.push({ type: 'pbar_creature', x: Math.random() > 0.5 ? 20 : canvas.width-20, y: Math.random() * (canvas.height - 150) + 75, speedX: (Math.random() - 0.5) * 8, speedY: (Math.random() - 0.5) * 8 });
+            }
+            if (entities.filter(e => e.type === 'spark').length < 2 && frameCount % 120 === 0) {
+                entities.push({ type: 'spark', x: canvas.width/2, y: 60, vx: (Math.random()-0.5)*8, vy: 5 });
+            }
+        }
+        
+        if (currentPhase === 2) {
+            let silicas = entities.filter(e => e.type === 'silica').length;
+            if(silicas < 3 && phaseProgress + silicas < phaseTargets[2]) {
+                entities.push({ type: 'silica', x: Math.random() * (canvas.width - 200) + 100, y: Math.random() * (canvas.height - 200) + 100, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, hp: 2 });
+            }
+            if (entities.filter(e => e.type === 'hazard').length < 3 && frameCount % 90 === 0) {
+                entities.push({ type: 'hazard', x: Math.random() > 0.5 ? 50 : canvas.width - 50, y: Math.random() * (canvas.height - 150) + 75, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10 });
+            }
+        }
+
+        if (currentPhase === 3) {
+            if (entities.filter(e => e.type === 'thermal_spike').length < 3 && frameCount % 120 === 0 && phaseTargets[3] > 0) {
+                entities.push({ type: 'thermal_spike', x: Math.random() > 0.5 ? 20 : canvas.width-20, y: Math.random() * (canvas.height - 150) + 75, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 });
+            }
+        }
+
+        if (currentPhase === 4) {
+            if (entities.filter(e => e.type === 'residual_gas').length < 4 && frameCount % 60 === 0) {
+                entities.push({ type: 'residual_gas', x: Math.random() * 400 + 300, y: 0, vx: 0, vy: 1.5 + Math.random() });
+            }
+        }
+    }
+
+    function createExplosion(x, y, color) { for(let i=0; i<15; i++) particles.push({ x: x, y: y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 1.0, color: color }); }
+
+    function takeDamage() {
+        if (player.invinc > 0) return;
+        tookDamageThisRun = true;
+        triggerShake(15, 12);
+        sfx.hurt(); score = Math.max(0, score - 500);
+        lives--; player.invinc = 120; 
+        createExplosion(player.x, player.y, '#f00');
+        addFloatingText("DAMAGE!", player.x, player.y - 30, '#f00');
+        document.getElementById('lives-disp').innerText = '♥'.repeat(lives);
+        speak("Warning. Containment compromised.");
+
+        if (lives <= 0) { triggerGameOver(false); }
+    }
+
+    function endPhase() {
+        isPaused = true; mouse.down = false; stopBeamSound(); player.isFiringBeam = false;
+        triggerShake(10, 5);
+        speak("Phase " + currentPhase + " complete.");
+        
+        let timeBonus = 0;
+        if (levelTime < TIME_LIMIT && phaseProgress >= phaseTargets[currentPhase]) {
+            timeBonus = Math.floor((TIME_LIMIT - levelTime) * 100);
+        }
+        score += timeBonus; 
+        document.getElementById('time-bonus-disp').innerText = timeBonus;
+
+        let title = `PHASE ${currentPhase} COMPLETE`;
+        let resultText = "";
+
+        if (currentPhase === 1) {
+            resultText = `Antiprotons ($\\bar{p}$) captured: <b>${trappedPbars}/${phaseTargets[1]}</b>.<br><br><b>NEXT: POSITRONIUM PRODUCTION</b><br>Equip Positron ($e^+$) Emitter. Shoot porous silica targets to make Positronium (Ps).<br><b>HAZARDS:</b> Spinning Anomalies and Gamma Rays ($\\gamma$)!`;
+        } else if (currentPhase === 2) {
+            let psCount = entities.filter(e => e.type === 'positronium').length;
+            resultText = `Positronium (Ps) atoms generated: <b>${psCount}/${phaseTargets[2]}</b>.<br><br><b>NEXT: DOPPLER LASER COOLING</b><br>Equip <b>Alexandrite Cooling Laser</b>. Use your <b>Mouse Scroll Wheel</b> to match the Laser Detuning frequency with the temperature of the Ps atoms. Watch out for Thermal Spikes!`;
+        } else if (currentPhase === 3) {
+            let cooledCount = entities.filter(e => e.type === 'positronium' && e.cooled).length;
+            resultText = `Positronium successfully cooled: <b>${cooledCount}</b>.<br><br><b>NEXT: TIME OF FLIGHT MEASUREMENT</b><br>Shoot your trapped Antiprotons into the Ps atoms to form Antihydrogen ($\\bar{H}$).<br><b>WARNING:</b> You ONLY have the Ps atoms you cooled. Make every shot count! Avoid Residual Gas!`;
+        }
+
+        document.getElementById('info-title').innerText = title;
+        document.getElementById('info-desc').innerHTML = resultText;
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('info-desc')]);
+        document.getElementById('info-screen').classList.remove('hidden');
+    }
+
+    function resumeGame() {
+        document.getElementById('info-screen').classList.add('hidden');
+        if (currentPhase === 4) return;
+        
+        currentPhase++; phaseProgress = 0; levelTime = 0; isPaused = false;
+        speak("Initiating Phase " + currentPhase + ".");
+        
+        let ed = document.getElementById('equip-disp');
+        let hw = document.getElementById('hazard-warning');
+        
+        if (currentPhase === 2) { 
+            ed.innerText = "POSITRON (e+) EMITTER"; ed.style.color = "#ffcc00"; hw.innerText = "AVOID HAZARDS"; 
+            entities = entities.filter(e => e.type === 'heart'); 
+        }
+        if (currentPhase === 3) { 
+            ed.innerText = "ALEXANDRITE LASER"; ed.style.color = "#00d4ff"; hw.innerText = "THERMAL SPIKES INCOMING";
+            document.getElementById('detuning-ui').classList.remove('hidden');
+            entities = entities.filter(e => e.type === 'positronium' || e.type === 'heart'); 
+            phaseTargets[3] = entities.filter(e => e.type === 'positronium').length; 
+            if (phaseTargets[3] === 0) { endPhase(); return; } 
+        }
+        if (currentPhase === 4) { 
+            ed.innerText = "p̄ LAUNCHER"; ed.style.color = "#ff3e3e"; hw.innerText = "AVOID RESIDUAL GAS!";
+            document.getElementById('detuning-ui').classList.add('hidden');
+            
+            let cooledPs = entities.filter(e => e.type === 'positronium' && e.cooled);
+            entities = cooledPs.concat(entities.filter(e => e.type === 'heart')); 
+            phaseTargets[4] = cooledPs.length;
+            
+            if (phaseTargets[4] === 0 || trappedPbars === 0) { triggerGameOver(false); return; } 
+            
+            cooledPs.forEach((e, idx) => { 
+                e.x = 100 + (idx % 4)*40; 
+                e.y = 100 + Math.floor(idx/4)*40; 
+            });
+        }
+        startBGM(); 
+    }
+
+    function update() {
+        if(isPaused || isGameOver) return;
+        frameCount++; levelTime += 1/60; totalTime += 1/60;
+
+        if (currentPhase < 4) {
+            if (levelTime >= TIME_LIMIT || phaseProgress >= phaseTargets[currentPhase]) {
+                endPhase();
+                return;
+            }
+        }
+
+        player.update();
+        if(frameCount % 30 === 0) spawnPhaseEntities();
+
+        if(currentPhase === 3) {
+            let uncooledPs = entities.filter(e => e.type === 'positronium' && !e.cooled);
+            if(uncooledPs.length > 0) {
+                let avgSpeed = uncooledPs.reduce((sum, e) => sum + Math.hypot(e.vx, e.vy), 0) / uncooledPs.length;
+                targetDetuning = Math.min(100, Math.max(0, avgSpeed * 8));
+                document.getElementById('detuning-target').style.top = `${100 - targetDetuning - 10}%`; 
+            }
+        }
+
+        if (currentPhase === 4) {
+            let psLeft = entities.filter(e => e.type === 'positronium').length;
+            let hbarsInFlight = hBars.length;
+            
+            document.getElementById('targets').innerText = "Ps LEFT";
+            document.getElementById('req-targets').innerText = psLeft;
+
+            if ((psLeft === 0 || trappedPbars === 0) && hbarsInFlight === 0) {
+                triggerGameOver(gMeasurements.length > 0); 
+                return;
+            }
+        }
+
+        for(let i=floatingTexts.length-1; i>=0; i--) {
+            floatingTexts[i].y -= 1; floatingTexts[i].life--;
+            if(floatingTexts[i].life <= 0) floatingTexts.splice(i,1);
+        }
+
+        for(let i=bullets.length-1; i>=0; i--) {
+            let b = bullets[i]; b.x += b.vx; b.y += b.vy;
+            let hit = false;
+            
+            if(b.type === 'positron' && (b.x<0 || b.x>canvas.width || b.y<50 || b.y>canvas.height-50)) {
+                sfx.pop(); createExplosion(b.x, b.y, '#fff');
+                entities.push({ type: 'gamma', x: b.x, y: b.y, vx: -b.vx*1.5, vy: -b.vy*1.5 + (Math.random()-0.5)*5 });
+                hit = true; 
+            } else if (b.x<0 || b.x>canvas.width || b.y<0 || b.y>canvas.height) { hit = true; }
+
+            if (!hit && b.type === 'positron' && currentPhase === 2) {
+                for(let j=entities.length-1; j>=0; j--) {
+                    let e = entities[j];
+                    if(e.type === 'silica' && Math.hypot(b.x - e.x, b.y - e.y) < 30) {
+                        e.hp--; sfx.pop(); createExplosion(b.x, b.y, '#ffcc00'); e.vx += b.vx * 0.1; e.vy += b.vy * 0.1; 
+                        if (e.hp <= 0) {
+                            entities.push({ type: 'positronium', x: e.x, y: e.y, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, cooled: false });
+                            phaseProgress++; score += 50; addFloatingText("Ps CREATED!", e.x, e.y, '#ffcc00');
+                            entities.splice(j, 1); 
+                        }
+                        hit = true; break;
+                    }
+                    if(e.type === 'hazard' && Math.hypot(b.x - e.x, b.y - e.y) < 20) {
+                        createExplosion(b.x, b.y, '#f00'); e.vx += b.vx * 0.2; e.vy += b.vy * 0.2; hit = true; break;
+                    }
+                }
+            }
+            
+            if (!hit && b.type === 'pbar' && currentPhase === 4) {
+                for(let j=entities.length-1; j>=0; j--) {
+                    let e = entities[j];
+                    if(e.type === 'positronium' && Math.hypot(b.x - e.x, b.y - e.y) < 20) {
+                        sfx.combine(); createExplosion(e.x, e.y, '#ff00ff');
+                        addFloatingText("H̄ LAUNCHED!", e.x, e.y - 20, '#ff00ff');
+                        let v_launch = 6 + Math.random()*2;
+                        hBars.push({ x: e.x, y: e.y, startX: e.x, startY: e.y, vx: v_launch, vy: 0, frames: 0 }); 
+                        entities.splice(j, 1); hit = true; break;
+                    }
+                }
+            }
+            if (hit) bullets.splice(i,1);
+        }
+
+        for(let i=entities.length-1; i>=0; i--) {
+            let e = entities[i];
+            
+            if (e.type === 'heart') {
+                e.life--; e.y += Math.sin(frameCount * 0.05) * 0.5;
+                if (e.life <= 0) { entities.splice(i, 1); continue; }
+                if (Math.hypot(e.x - player.x, e.y - player.y) < 25) {
+                    sfx.oneup(); lives = Math.min(lives + 1, maxLives);
+                    document.getElementById('lives-disp').innerText = '♥'.repeat(lives);
+                    addFloatingText("+1 INTEGRITY", e.x, e.y, '#ff3e3e');
+                    entities.splice(i, 1); continue;
+                }
+            }
+            else if (e.type === 'pbar_creature') {
+                e.x += e.speedX; e.y += e.speedY;
+                if (e.x < 15 || e.x > canvas.width-15) e.speedX *= -1;
+                if (e.y < 60 || e.y > canvas.height-60) e.speedY *= -1; 
+                if (frameCount % 40 === 0) { e.speedX += (Math.random()-0.5)*3; e.speedY += (Math.random()-0.5)*3; }
+            } 
+            else if (e.type === 'spark') {
+                e.x += e.vx; e.y += e.vy;
+                if (e.x < 15 || e.x > canvas.width-15) e.vx *= -1;
+                if (e.y < 60 || e.y > canvas.height-60) e.vy *= -1;
+                if (Math.hypot(e.x - player.x, e.y - player.y) < 25) { takeDamage(); entities.splice(i, 1); }
+            }
+            else if (e.type === 'gamma') {
+                e.x += e.vx; e.y += e.vy;
+                if (e.x < 0 || e.x > canvas.width || e.y < 0 || e.y > canvas.height) entities.splice(i, 1);
+                else if (Math.hypot(e.x - player.x, e.y - player.y) < 20) { takeDamage(); entities.splice(i, 1); }
+            }
+            else if (e.type === 'silica' || e.type === 'hazard') {
+                e.x += e.vx; e.y += e.vy;
+                if (e.x < 30 || e.x > canvas.width-30) e.vx *= -1;
+                if (e.y < 60 || e.y > canvas.height-60) e.vy *= -1;
+                if (e.type === 'hazard' && Math.hypot(e.x - player.x, e.y - player.y) < 25) { takeDamage(); entities.splice(i, 1); }
+            }
+            else if (e.type === 'thermal_spike') {
+                e.x += e.vx; e.y += e.vy;
+                if (e.x < 15 || e.x > canvas.width-15) e.vx *= -1;
+                if (e.y < 60 || e.y > canvas.height-60) e.vy *= -1;
+                if (Math.hypot(e.x - player.x, e.y - player.y) < 20) { takeDamage(); entities.splice(i, 1); continue; }
+                
+                for (let j=entities.length-1; j>=0; j--) {
+                    let ps = entities[j];
+                    if (ps.type === 'positronium' && ps.cooled && Math.hypot(e.x - ps.x, e.y - ps.y) < 25) {
+                        ps.cooled = false; ps.vx = (Math.random()-0.5)*12; ps.vy = (Math.random()-0.5)*12;
+                        createExplosion(ps.x, ps.y, '#f90'); addFloatingText("UNSTABLE!", ps.x, ps.y, '#f90');
+                        phaseProgress = Math.max(0, phaseProgress - 1); 
+                        entities.splice(i, 1); break;
+                    }
+                }
+            }
+            else if (e.type === 'residual_gas') {
+                e.y += e.vy;
+                if (e.y > canvas.height) entities.splice(i, 1);
+                else if (Math.hypot(e.x - player.x, e.y - player.y) < 25) { takeDamage(); entities.splice(i, 1); }
+            }
+            else if (e.type === 'positronium' && !e.cooled) {
+                e.x += e.vx; e.y += e.vy;
+                if (e.x < 15 || e.x > canvas.width-15) e.vx *= -1;
+                if (e.y < 60 || e.y > canvas.height-60) e.vy *= -1;
+            }
+        }
+
+        // --- ToF KINEMATICS ---
+        for(let i=hBars.length-1; i>=0; i--) {
+            let h = hBars[i];
+            h.x += h.vx; h.vy += 0.08; h.y += h.vy; h.frames++;
+            
+            if(frameCount % 3 === 0) particles.push({x: h.x, y: h.y, vx: 0, vy: 0, life: 0.8, color: 'rgba(157, 0, 255, 0.5)'});
+
+            let annihilated = false;
+            for(let j=entities.length-1; j>=0; j--) {
+                let e = entities[j];
+                if (e.type === 'residual_gas' && Math.hypot(h.x - e.x, h.y - e.y) < 30) {
+                    sfx.pop(); createExplosion(h.x, h.y, '#fff'); addFloatingText("ANNIHILATED!", h.x, h.y, '#f00');
+                    triggerShake(8, 4);
+                    entities.splice(j, 1); hBars.splice(i, 1); annihilated = true; break;
+                }
+            }
+            if (annihilated) continue;
+
+            if (h.x > 750 && h.x < 780) {
+                sfx.tof(); score += 1500; 
+                let dy = h.y - h.startY; let simG = (2 * dy) / (h.frames * h.frames);
+                let measuredG = simG * 122.625 + (Math.random() - 0.5) * 1.5; 
+                gMeasurements.push(measuredG);
+                addFloatingText(`g=${measuredG.toFixed(2)}`, h.x - 60, h.y, '#39ff14');
+                createExplosion(h.x, h.y, '#39ff14'); hBars.splice(i, 1);
+            } else if (h.y > canvas.height + 50 || h.x > canvas.width + 50) { 
+                hBars.splice(i, 1); 
+            }
+        }
+
+        for(let i=particles.length-1; i>=0; i--) {
+            let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+            if(p.life <= 0) particles.splice(i,1);
+        }
+    }
+
+    function calculateAchievements() {
+        let ach = [];
+        if (!tookDamageThisRun) ach.push("FLAWLESS: No Damage Taken");
+        if (totalTime < 180) ach.push("SPEED RUNNER: Sub-3 Minute Clear");
+        if (detuningErrors < 5 && currentPhase > 3) ach.push("ABSOLUTE ZERO: Perfect Laser Tuning");
+        if (gMeasurements.length >= 10) ach.push("NOBEL LAUREATE: 10+ Measurements");
+        return ach;
+    }
+
+    function triggerGameOver(win) {
+        isGameOver = true; isPaused = true; stopBeamSound(); clearInterval(bgmInterval);
+        document.getElementById('end-screen').classList.remove('hidden');
+        
+        let achHTML = "";
+        let achievements = calculateAchievements();
+        achievements.forEach(a => { achHTML += `<div class="badge">${a}</div>`; });
+        document.getElementById('achievements-container').innerHTML = achHTML;
+
+        if (win) {
+            sfx.win();
+            speak("Measurement successful. Antihydrogen gravity confirmed.");
+            document.getElementById('end-title').innerText = "EXPERIMENT CONCLUDED";
+            document.getElementById('end-title').style.color = "#00ffff";
+            document.getElementById('end-desc').innerHTML = `All synthesized Antihydrogen has been processed. You made ${gMeasurements.length} successful measurement(s). Calculated average $\\bar{g}$ based on ToF:`;
+            
+            let avgG = gMeasurements.reduce((a,b)=>a+b,0) / gMeasurements.length;
+            document.getElementById('final-g-disp').innerText = `g = ${avgG.toFixed(3)} ± 0.4 m/s²`;
+            document.getElementById('final-g-disp').style.display = 'block';
+            document.getElementById('plotCanvas').style.display = 'block';
+            drawPlot(avgG);
+        } else {
+            speak("Experiment failed. Systems shutting down.");
+            document.getElementById('end-title').innerText = "SYSTEM FAILURE";
+            document.getElementById('end-title').style.color = "#ff3e3e";
+            document.getElementById('end-desc').innerHTML = "Critical damage sustained or lack of resources to complete measurement.";
+            document.getElementById('final-g-disp').style.display = 'none';
+            document.getElementById('plotCanvas').style.display = 'none';
+        }
+
+        if (topScores.length < 5 || score > topScores[topScores.length-1].score) {
+            document.getElementById('input-section').classList.remove('hidden');
+            document.getElementById('restart-btn').classList.add('hidden');
+            document.getElementById('initials').focus();
+        } else {
+            showLeaderboard();
+        }
+    }
+
+    function drawPlot(avgG) {
+        let pCanvas = document.getElementById('plotCanvas'); let pCtx = pCanvas.getContext('2d');
+        pCtx.clearRect(0,0, pCanvas.width, pCanvas.height);
+        pCtx.strokeStyle = '#fff'; pCtx.lineWidth = 1;
+        pCtx.beginPath(); pCtx.moveTo(40, 10); pCtx.lineTo(40, 130); pCtx.lineTo(380, 130); pCtx.stroke();
+        pCtx.fillStyle = '#fff'; pCtx.font = '12px Space Mono'; pCtx.fillText("g (m/s²)", 5, 20); pCtx.fillText("Measurement #", 180, 145);
+        
+        let mapY = (val) => 130 - ((val - 7) / 6) * 120; 
+        pCtx.strokeStyle = 'rgba(57, 255, 20, 0.5)'; pCtx.setLineDash([5, 5]);
+        pCtx.beginPath(); pCtx.moveTo(40, mapY(9.81)); pCtx.lineTo(380, mapY(9.81)); pCtx.stroke();
+        pCtx.setLineDash([]); pCtx.fillText("9.81", 10, mapY(9.81) + 4);
+
+        let stepX = 320 / Math.max(1, gMeasurements.length);
+        gMeasurements.forEach((val, idx) => {
+            let x = 60 + idx * stepX; let y = mapY(val);
+            pCtx.fillStyle = '#00d4ff'; pCtx.beginPath(); pCtx.arc(x, y, 3, 0, Math.PI*2); pCtx.fill();
+            pCtx.strokeStyle = '#00d4ff'; pCtx.beginPath(); pCtx.moveTo(x, mapY(val+0.4)); pCtx.lineTo(x, mapY(val-0.4)); pCtx.stroke();
+            pCtx.beginPath(); pCtx.moveTo(x-2, mapY(val+0.4)); pCtx.lineTo(x+2, mapY(val+0.4)); pCtx.stroke();
+            pCtx.beginPath(); pCtx.moveTo(x-2, mapY(val-0.4)); pCtx.lineTo(x+2, mapY(val-0.4)); pCtx.stroke();
+        });
+
+        pCtx.strokeStyle = '#ff00ff'; pCtx.lineWidth = 2;
+        pCtx.beginPath(); pCtx.moveTo(40, mapY(avgG)); pCtx.lineTo(380, mapY(avgG)); pCtx.stroke();
+    }
+
+    function draw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        
+        ctx.save();
+        if (shakeTime > 0) {
+            ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag);
+            shakeTime--;
+        }
+
+        let pX = player.x * -0.05; let pY = player.y * -0.05;
+        ctx.save(); ctx.translate(pX, pY);
+        ctx.strokeStyle = '#081a20'; ctx.lineWidth = 1;
+        for(let i=-200; i<canvas.width+200; i+=60) { ctx.beginPath(); ctx.moveTo(i,-200); ctx.lineTo(i,canvas.height+200); ctx.stroke(); }
+        for(let i=-200; i<canvas.height+200; i+=60) { ctx.beginPath(); ctx.moveTo(-200,i); ctx.lineTo(canvas.width+200,i); ctx.stroke(); }
+        ctx.restore();
+
+        ctx.fillStyle = '#0a1015'; ctx.fillRect(0, 0, canvas.width, 50); ctx.fillRect(0, canvas.height-50, canvas.width, 50);
+        ctx.fillStyle = '#111'; ctx.font = '20px VT323'; ctx.textAlign = 'center';
+        for(let i=0; i<canvas.width; i+=150) {
+            let offset = (i + player.x * -0.1) % (canvas.width + 150);
+            if (offset < -150) offset += canvas.width + 150;
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 4;
+            ctx.strokeRect(offset, 0, 140, 50); ctx.strokeRect(offset, canvas.height-50, 140, 50);
+            ctx.fillStyle = 'rgba(0, 212, 255, 0.2)';
+            ctx.fillText('5T MAGNET BORE', offset + 70, 30); ctx.fillText('TRAP ELECTRODE', offset + 70, canvas.height - 20);
+        }
+
+        if (currentPhase === 4) {
+            ctx.fillStyle = '#444'; ctx.fillRect(750, 50, 10, canvas.height - 100); ctx.fillStyle = '#111';
+            for(let y = 60; y < canvas.height - 50; y += 25) { ctx.fillRect(748, y, 14, 12); } 
+            ctx.fillStyle = 'rgba(57, 255, 20, 0.15)'; ctx.fillRect(780, 50, 40, canvas.height - 100);
+            ctx.fillStyle = '#39ff14'; ctx.textAlign = 'left';
+            ctx.fillText('MOIRE', 785, 80); ctx.fillText('DETECTOR', 770, 100);
+        }
+        ctx.textAlign = 'left';
+
+        player.draw();
+        particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4); });
+        ctx.globalAlpha = 1.0;
+
+        entities.forEach(e => {
+            if (e.type === 'heart') {
+                let pulse = Math.sin(frameCount * 0.1) * 2;
+                ctx.fillStyle = '#ff3e3e'; ctx.font = `${20 + pulse}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.globalAlpha = e.life < 120 ? (frameCount % 10 < 5 ? 1 : 0) : 1;
+                ctx.fillText('♥', e.x, e.y); ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+            }
+            else if (e.type === 'pbar_creature') {
+                ctx.save(); ctx.translate(e.x, e.y); let wobble = Math.sin(frameCount) * 3;
+                ctx.fillStyle = '#ff3e3e'; ctx.beginPath(); ctx.arc(0, wobble, 12, 0, Math.PI*2); ctx.fill(); 
+                ctx.strokeStyle = '#ff3e3e'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-8, wobble+8); ctx.lineTo(-12, wobble+16); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(8, wobble+8); ctx.lineTo(12, wobble+16); ctx.stroke();
+                let lookX = (e.x > player.x) ? 3 : -3;
+                ctx.fillStyle = '#fff'; ctx.fillRect(-5 + lookX, wobble-5, 4, 4); ctx.fillRect(3 + lookX, wobble-5, 4, 4);
+                ctx.fillStyle = '#000'; ctx.fillRect(-4 + lookX, wobble-4, 2, 2); ctx.fillRect(4 + lookX, wobble-4, 2, 2);
+                ctx.restore();
+            } else if (e.type === 'spark') {
+                ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(frameCount*0.5);
+                ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-15, -15); ctx.lineTo(15, 15); ctx.moveTo(-15, 15); ctx.lineTo(15, -15); ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, 6+Math.random()*4, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            } else if (e.type === 'gamma') {
+                ctx.fillStyle = '#fff'; ctx.fillRect(e.x-10, e.y-2, 20, 4);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(e.x-20, e.y-4, 40, 8);
+            } else if (e.type === 'silica') {
+                ctx.fillStyle = '#444'; ctx.fillRect(e.x-25, e.y-25, 50, 50); ctx.fillStyle = '#222';
+                ctx.beginPath(); ctx.arc(e.x-10, e.y-10, 6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x+10, e.y+10, 8, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x+12, e.y-10, 4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffcc00'; ctx.fillRect(e.x-20, e.y-35, 40 * (e.hp/2), 6);
+            } else if (e.type === 'thermal_spike') {
+                ctx.save(); ctx.translate(e.x, e.y);
+                let pulse = Math.sin(frameCount * 0.2) * 4;
+                ctx.fillStyle = '#f90'; ctx.beginPath(); ctx.arc(0, 0, 10 + pulse, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#f00'; ctx.lineWidth = 2;
+                for(let i=0; i<4; i++) { ctx.beginPath(); ctx.moveTo(0, 12+pulse); ctx.lineTo(0, 18+pulse); ctx.stroke(); ctx.rotate(Math.PI/2); }
+                ctx.restore();
+            } else if (e.type === 'residual_gas') {
+                ctx.fillStyle = 'rgba(50, 200, 50, 0.3)';
+                ctx.beginPath(); ctx.arc(e.x, e.y, 25 + Math.sin(frameCount*0.05)*5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x - 10, e.y - 10, 15, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x + 15, e.y + 5, 18, 0, Math.PI*2); ctx.fill();
+            } else if (e.type === 'positronium') {
+                ctx.save(); ctx.translate(e.x, e.y);
+                if (!e.cooled) ctx.rotate(frameCount * 0.3);
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-15,0); ctx.lineTo(15,0); ctx.stroke();
+                ctx.fillStyle = '#00d4ff'; ctx.beginPath(); ctx.arc(-15, 0, 5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(15, 0, 5, 0, Math.PI*2); ctx.fill();
+                if(e.cooled) { ctx.fillStyle = 'rgba(0, 212, 255, 0.4)'; ctx.fillRect(-20, -20, 40, 40); ctx.strokeStyle = '#00ffff'; ctx.strokeRect(-20, -20, 40, 40); }
+                ctx.restore();
+            } else if (e.type === 'hazard') {
+                ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(frameCount*0.2);
+                ctx.fillStyle = '#f00'; ctx.beginPath();
+                for(let j=0; j<4; j++) { ctx.lineTo(0, -15); ctx.lineTo(4, -4); ctx.rotate(Math.PI/2); }
+                ctx.fill(); ctx.restore();
+            }
+        });
+
+        bullets.forEach(b => {
+            if (b.type === 'positron') { ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); } 
+            else if (b.type === 'pbar') { ctx.fillStyle = '#ff3e3e'; ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '12px Space Mono'; ctx.fillText('p̄', b.x-4, b.y+4); }
+        });
+
+        hBars.forEach(h => {
+            ctx.save(); ctx.translate(h.x, h.y);
+            ctx.fillStyle = `rgba(157, 0, 255, ${0.4 + Math.sin(frameCount/5)*0.2})`; ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ff3e3e'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Space Mono'; ctx.fillText('p̄', -6, 4);
+            ctx.rotate(frameCount * 0.2); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.stroke();
+            ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(18, 0, 5, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        });
+
+        floatingTexts.forEach(ft => {
+            ctx.fillStyle = ft.color; ctx.globalAlpha = ft.life / 60;
+            ctx.font = 'bold 22px VT323'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); ctx.globalAlpha = 1.0; ctx.textAlign = 'left';
+        });
+
+        document.getElementById('phase-disp').innerText = currentPhase; 
+        document.getElementById('time-disp').innerText = currentPhase < 4 ? Math.max(0, TIME_LIMIT - levelTime).toFixed(2) : "N/A";
+        document.getElementById('score').innerText = score; document.getElementById('pbar-count').innerText = trappedPbars;
+        
+        if (currentPhase < 4) {
+            document.getElementById('targets').innerText = phaseProgress; document.getElementById('req-targets').innerText = phaseTargets[currentPhase];
+        }
+        
+        ctx.restore(); // Restore global shake translate
+    }
+
+    function loop() { if(isPlaying) { update(); draw(); requestAnimationFrame(loop); } }
+
+    let topScores = JSON.parse(localStorage.getItem('aegisTofScores')) || [
+        { name: 'CERN_001', score: 25000, g: "9.811" }, { name: 'RAWAT_B', score: 20000, g: "9.825" }, { name: 'AEGIS_L', score: 15000, g: "9.790" }
+    ];
+
+    function startGame() {
+        initAudio(); startBGM();
+        speak("Initializing AEgIS protocol.");
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('hud-right').classList.remove('hidden');
+        
+        player.x = canvas.width/2; player.y = canvas.height/2; lives = maxLives;
+        document.getElementById('lives-disp').innerText = '♥'.repeat(lives);
+        
+        entities = []; bullets = []; particles = []; floatingTexts = []; hBars = []; gMeasurements = [];
+        currentPhase = 1; phaseProgress = 0; trappedPbars = 0; frameCount = 0; score = 0; levelTime = 0; totalTime = 0;
+        tookDamageThisRun = false; detuningErrors = 0; isNotebookOpen = false;
+        
+        isPlaying = true; isPaused = false; isGameOver = false;
+        requestAnimationFrame(loop);
+    }
+
+    function saveScore() {
+        let name = document.getElementById('initials').value.trim().toUpperCase() || 'UNKNOWN';
+        let avgG = gMeasurements.length > 0 ? (gMeasurements.reduce((a,b)=>a+b,0) / gMeasurements.length).toFixed(3) : "FAIL";
+        
+        topScores.push({ name: name, score: score, g: avgG });
+        topScores.sort((a,b) => b.score - a.score); topScores = topScores.slice(0, 5);
+        localStorage.setItem('aegisTofScores', JSON.stringify(topScores));
+        document.getElementById('input-section').classList.add('hidden'); showLeaderboard();
+    }
+
+    function showLeaderboard() {
+        document.getElementById('leaderboard').classList.remove('hidden');
+        document.getElementById('restart-btn').classList.remove('hidden');
+        let tbody = document.getElementById('lb-body'); tbody.innerHTML = '';
+        topScores.forEach((entry, i) => { tbody.innerHTML += `<tr><td>0${i+1}</td><td>${entry.name}</td><td>${entry.score}</td><td>${entry.g} m/s²</td></tr>`; });
+    }
+</script>
+</body>
+</html>
