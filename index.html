@@ -23,7 +23,7 @@
         p { font-size: 1.1rem; line-height: 1.5; color: #ddd; max-width: 700px; margin-bottom: 20px; }
         .highlight { color: var(--term-green); font-weight: bold; }
         
-        button { background: #111; color: var(--term-green); border: 2px solid var(--term-green); font-family: 'VT323', monospace; font-size: 1.8rem; padding: 10px 30px; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        button { background: #111; color: var(--term-green); border: 2px solid var(--term-green); font-family: 'VT323', monospace; font-size: 1.8rem; padding: 10px 30px; cursor: pointer; transition: 0.2s; margin-top: 10px; text-transform: uppercase;}
         button:hover { background: var(--term-green); color: #000; box-shadow: 0 0 20px var(--term-green); }
         
         .hud { position: absolute; top: 15px; left: 20px; font-size: 1.1rem; z-index: 2; pointer-events: none; text-shadow: 1px 1px #000; font-weight: bold;}
@@ -32,7 +32,20 @@
         table { width: 90%; border-collapse: collapse; font-size: 1.2rem; margin-top: 10px; color: #fff; font-family: 'VT323', monospace;}
         th, td { border-bottom: 1px solid #1a5910; padding: 5px; text-align: center; }
         th { color: var(--term-green); }
-        input { background: #000; color: #00ffff; border: 2px solid #00ffff; font-family: 'VT323', monospace; font-size: 1.5rem; width: 150px; text-align: center; text-transform: uppercase; outline: none; }
+        input, select, textarea { background: #000; color: #00ffff; border: 2px solid #00ffff; font-family: 'VT323', monospace; font-size: 1.5rem; width: 150px; text-align: center; outline: none; }
+
+        /* --- NEW FORMS & HOF STYLES --- */
+        .hof-container { border: 1px solid var(--term-green); padding: 15px; background: rgba(0,0,0,0.8); width: 350px; margin-bottom: 20px; position: relative;}
+        .hof-title { color: var(--term-green); font-size: 1.5rem; font-family: 'VT323', monospace; text-align: center; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .hof-row { display: flex; justify-content: space-between; font-size: 1rem; margin: 3px 0; color: #ccc; font-family: 'VT323', monospace;}
+        .hof-row.top { color: #ffd700; font-weight: bold; }
+        .clear-hof { font-size: 1rem; color: #ff3e3e; cursor: pointer; text-decoration: underline; position: absolute; right: 10px; top: 15px; font-family: 'VT323', monospace;}
+        .clear-hof:hover { color: #fff; }
+
+        .form-group { margin-bottom: 15px; width: 350px; display: flex; flex-direction: column; text-align: left; }
+        .form-group label { font-size: 1.2rem; margin-bottom: 5px; color: #ffd700; font-family: 'VT323', monospace;}
+        .form-input { width: 100%; text-align: left; padding: 10px; font-size: 1.2rem;}
+        .form-input::placeholder { color: #00ffff55; }
 
         #detuning-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 30px; height: 200px; border: 2px solid #00d4ff; background: rgba(0,0,0,0.5); z-index: 2; }
         #detuning-target { position: absolute; width: 100%; height: 20px; background: rgba(57, 255, 20, 0.5); border: 1px solid #39ff14; transition: top 0.2s; }
@@ -47,11 +60,24 @@
         #achievements-container { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
         .badge { background: #111; border: 2px solid #ffcc00; color: #ffcc00; padding: 5px 15px; font-family: 'VT323', monospace; font-size: 1.2rem; border-radius: 4px; box-shadow: 0 0 10px rgba(255, 204, 0, 0.3); animation: pulse 2s infinite;}
         @keyframes pulse { 0% { box-shadow: 0 0 5px #ffcc00; } 50% { box-shadow: 0 0 15px #ffcc00; } 100% { box-shadow: 0 0 5px #ffcc00; } }
+
+        /* --- VIDEO INTRO STYLES --- */
+        #video-intro-screen { z-index: 50; padding: 0; cursor: pointer; background: #000; }
+        #intro-video { position: absolute; width: 640px; height: 640px; object-fit: contain; z-index: 1; opacity: 0.8; }
+        .click-prompt { position: relative; z-index: 2; background: rgba(0,0,0,0.8); padding: 20px 40px; border: 2px solid var(--term-green); color: var(--term-green); font-family: 'VT323', monospace; font-size: 2.5rem; text-shadow: 0 0 15px var(--term-green); animation: pulse 2s infinite; }
     </style>
 </head>
 <body>
 
 <div id="game-wrapper">
+    <div id="video-intro-screen" class="overlay">
+        <video id="intro-video" autoplay muted loop playsinline>
+            <source src="Anni Intro2.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="click-prompt">[ CLICK TO PLAY ]</div>
+    </div>
+
     <canvas id="gameCanvas" width="900" height="600"></canvas>
     
     <div id="detuning-ui" class="hidden">
@@ -69,13 +95,19 @@
         <span id="hazard-warning" style="color:#ff3e3e; font-family:'VT323'; font-size: 1.5rem;"></span>
     </div>
     <div id="hud-right" class="hud-right hidden">
+        OP: <span id="active-op-disp" style="color:#ffd700;">---</span><br>
         SCORE: <span id="score" style="color:#00ffff;">0</span><br>
         PROGRESS: <span id="targets">0</span> / <span id="req-targets">15</span><br>
         CAPTURED p̄: <span id="pbar-count" style="color:#ff3e3e;">0</span><br>
         <span style="font-size: 1rem; color: #888;">[TAB] LAB NOTEBOOK</span>
     </div>
 
-    <div id="menu-screen" class="overlay">
+    <div id="menu-screen" class="overlay hidden">
+        <div class="hof-container">
+            <div class="hof-title">TOP 5 OPERATORS</div>
+            <span class="clear-hof" onclick="clearHOF()">[CLEAR]</span>
+            <div id="hofList"></div>
+        </div>
         <h1>AEgIS: GRAVITY LAB</h1>
         <p>
             Synthesize Antihydrogen ($\bar{H}$) and measure its gravitational free-fall using the Moire Deflectometer. Every particle counts! Resource management is critical.<br><br>
@@ -85,7 +117,28 @@
             [SCROLL WHEEL] - Adjust Laser Frequency (Phase 3)<br>
             [TAB] - Open Interactive Lab Notebook
         </p>
-        <button onclick="startGame()">[ ENTER LAB ]</button>
+        <button onclick="showRegistration()">[ PROCEED TO REGISTRATION ]</button>
+    </div>
+
+    <div id="registration-screen" class="overlay hidden">
+        <h1 style="color:var(--gold); font-size: 2.5rem; margin-bottom: 20px;">OPERATOR IDENTITY CARD</h1>
+        
+        <div class="form-group">
+            <label>OPERATOR NAME / ALIAS</label>
+            <input type="text" id="regName" class="form-input" placeholder="e.g. Proton-Commander">
+        </div>
+
+        <div class="form-group">
+            <label>AGE</label>
+            <input type="number" id="regAge" class="form-input" placeholder="Years old">
+        </div>
+        
+        <div class="form-group">
+            <label>CHOOSE YOUR FUTURE MISSION</label>
+            <input type="text" id="regInfo" class="form-input" placeholder="What do you want to be when you grow up?">
+        </div>
+        
+        <button onclick="masterUnlock()">[ AUTHORIZE & ENGAGE ]</button>
     </div>
 
     <div id="notebook-screen" class="overlay hidden">
@@ -125,22 +178,114 @@
         
         <div id="achievements-container"></div>
 
-        <div id="input-section" class="hidden" style="margin-top: 15px;">
-            <span style="font-family: 'VT323'; font-size: 1.5rem;">NEW RECORD! ID: </span>
-            <input type="text" id="initials" maxlength="8" placeholder="________">
-            <button onclick="saveScore()" style="font-size: 1.2rem; padding: 5px 15px;">[ UPLOAD ]</button>
-        </div>
-
-        <table id="leaderboard" class="hidden">
+        <table id="leaderboard" style="margin-top:15px;">
             <thead><tr><th>RANK</th><th>ID</th><th>SCORE</th><th>MEASURED g</th></tr></thead>
             <tbody id="lb-body"></tbody>
         </table>
         
-        <button id="restart-btn" class="hidden" onclick="location.reload()">[ RESTART EXPERIMENT ]</button>
+        <div style="display: flex; gap: 15px; margin-top: 20px;">
+            <button id="restart-btn" onclick="location.reload()">[ RESTART EXPERIMENT ]</button>
+            <button onclick="downloadImpactData()" style="border-color: #00ffff; color: #00ffff;">[ EXPORT IMPACT (.TXT) ]</button>
+        </div>
     </div>
 </div>
 
 <script>
+    // --- VIDEO INTRO LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const videoScreen = document.getElementById('video-intro-screen');
+        const introVideo = document.getElementById('intro-video');
+
+        videoScreen.addEventListener('click', () => {
+            videoScreen.classList.add('hidden');
+            introVideo.pause();
+            document.getElementById('menu-screen').classList.remove('hidden');
+            initHOF();
+        });
+    });
+
+    // --- HALL OF FAME & REGISTRATION LOGIC ---
+    let topScores = JSON.parse(localStorage.getItem('aegisTofScores')) || [
+        { name: 'CERN_001', score: 25000, g: "9.811" }, { name: 'RAWAT_B', score: 20000, g: "9.825" }, { name: 'AEGIS_L', score: 15000, g: "9.790" }
+    ];
+    let operatorName = "UNKNOWN";
+
+    function initHOF() {
+        const list = document.getElementById('hofList');
+        list.innerHTML = topScores.length === 0 ? "<div class='hof-row'>SYSTEM CLEAR - NO DATA</div>" : "";
+        topScores.forEach((entry, i) => {
+            let div = document.createElement('div');
+            div.className = `hof-row ${i === 0 ? 'top' : ''}`;
+            div.innerHTML = `<span>#${i+1} ${entry.name}</span><span>${entry.score}</span>`;
+            list.appendChild(div);
+        });
+    }
+
+    function clearHOF() { 
+        if(confirm("ERASE ALL HIGH SCORE RECORDS?")) { 
+            localStorage.removeItem('aegisTofScores'); 
+            topScores = [];
+            initHOF(); 
+        } 
+    }
+
+    function showRegistration() {
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('registration-screen').classList.remove('hidden');
+    }
+
+    function masterUnlock() {
+        const regName = document.getElementById('regName').value.trim();
+        const regAge = document.getElementById('regAge').value.trim();
+        const regInfo = document.getElementById('regInfo').value.trim();
+
+        if (!regName || !regAge) { alert("ERROR: NAME AND AGE IDENTIFICATION REQUIRED FOR RESEARCH."); return; }
+        
+        operatorName = regName.toUpperCase();
+        document.getElementById('active-op-disp').innerText = operatorName;
+        
+        let impactData = JSON.parse(localStorage.getItem('aegis_gravity_impact_data') || "[]");
+        impactData.push({
+            name: operatorName,
+            age: regAge,
+            career_dream: regInfo || "N/A",
+            date: new Date().toLocaleString(),
+            score: "In Progress",
+            measured_g: "N/A"
+        });
+        localStorage.setItem('aegis_gravity_impact_data', JSON.stringify(impactData));
+
+        document.getElementById('registration-screen').classList.add('hidden');
+        startGame();
+    }
+
+    function downloadImpactData() {
+        const data = JSON.parse(localStorage.getItem('aegis_gravity_impact_data') || "[]");
+        let txt = "CERN AEgIS IMPACT STUDY - OPERATOR LOGS\n";
+        txt += "========================================\n\n";
+        
+        data.forEach((op, i) => {
+            txt += `LOG #${i+1}\n`;
+            txt += `Operator Name: ${op.name}\n`;
+            txt += `Age: ${op.age}\n`;
+            txt += `Future Mission (Career): ${op.career_dream}\n`;
+            txt += `Timestamp: ${op.date}\n`;
+            txt += `Final Score: ${op.score}\n`;
+            txt += `Measured Gravity: ${op.measured_g} m/s²\n`;
+            txt += `----------------------------------------\n`;
+        });
+        
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "AEgIS_Gravity_Impact_Data.txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
@@ -768,6 +913,22 @@
         return ach;
     }
 
+    function saveScoreAndImpactData(avgG) {
+        // Save to High Scores
+        topScores.push({ name: operatorName, score: score, g: avgG });
+        topScores.sort((a,b) => b.score - a.score); 
+        topScores = topScores.slice(0, 5);
+        localStorage.setItem('aegisTofScores', JSON.stringify(topScores));
+
+        // Update Impact Data
+        let impactData = JSON.parse(localStorage.getItem('aegis_gravity_impact_data') || "[]");
+        if (impactData.length > 0) {
+            impactData[impactData.length - 1].score = score;
+            impactData[impactData.length - 1].measured_g = avgG;
+            localStorage.setItem('aegis_gravity_impact_data', JSON.stringify(impactData));
+        }
+    }
+
     function triggerGameOver(win) {
         isGameOver = true; isPaused = true; stopBeamSound(); clearInterval(bgmInterval);
         document.getElementById('end-screen').classList.remove('hidden');
@@ -777,6 +938,8 @@
         achievements.forEach(a => { achHTML += `<div class="badge">${a}</div>`; });
         document.getElementById('achievements-container').innerHTML = achHTML;
 
+        let avgGStr = "FAIL";
+
         if (win) {
             sfx.win();
             speak("Measurement successful. Antihydrogen gravity confirmed.");
@@ -785,7 +948,8 @@
             document.getElementById('end-desc').innerHTML = `All synthesized Antihydrogen has been processed. You made ${gMeasurements.length} successful measurement(s). Calculated average $\\bar{g}$ based on ToF:`;
             
             let avgG = gMeasurements.reduce((a,b)=>a+b,0) / gMeasurements.length;
-            document.getElementById('final-g-disp').innerText = `g = ${avgG.toFixed(3)} ± 0.4 m/s²`;
+            avgGStr = avgG.toFixed(3);
+            document.getElementById('final-g-disp').innerText = `g = ${avgGStr} ± 0.4 m/s²`;
             document.getElementById('final-g-disp').style.display = 'block';
             document.getElementById('plotCanvas').style.display = 'block';
             drawPlot(avgG);
@@ -798,13 +962,8 @@
             document.getElementById('plotCanvas').style.display = 'none';
         }
 
-        if (topScores.length < 5 || score > topScores[topScores.length-1].score) {
-            document.getElementById('input-section').classList.remove('hidden');
-            document.getElementById('restart-btn').classList.add('hidden');
-            document.getElementById('initials').focus();
-        } else {
-            showLeaderboard();
-        }
+        saveScoreAndImpactData(avgGStr);
+        showLeaderboard();
     }
 
     function drawPlot(avgG) {
@@ -964,10 +1123,6 @@
 
     function loop() { if(isPlaying) { update(); draw(); requestAnimationFrame(loop); } }
 
-    let topScores = JSON.parse(localStorage.getItem('aegisTofScores')) || [
-        { name: 'CERN_001', score: 25000, g: "9.811" }, { name: 'RAWAT_B', score: 20000, g: "9.825" }, { name: 'AEGIS_L', score: 15000, g: "9.790" }
-    ];
-
     function startGame() {
         initAudio(); startBGM();
         speak("Initializing AEgIS protocol.");
@@ -987,19 +1142,8 @@
         requestAnimationFrame(loop);
     }
 
-    function saveScore() {
-        let name = document.getElementById('initials').value.trim().toUpperCase() || 'UNKNOWN';
-        let avgG = gMeasurements.length > 0 ? (gMeasurements.reduce((a,b)=>a+b,0) / gMeasurements.length).toFixed(3) : "FAIL";
-        
-        topScores.push({ name: name, score: score, g: avgG });
-        topScores.sort((a,b) => b.score - a.score); topScores = topScores.slice(0, 5);
-        localStorage.setItem('aegisTofScores', JSON.stringify(topScores));
-        document.getElementById('input-section').classList.add('hidden'); showLeaderboard();
-    }
-
     function showLeaderboard() {
         document.getElementById('leaderboard').classList.remove('hidden');
-        document.getElementById('restart-btn').classList.remove('hidden');
         let tbody = document.getElementById('lb-body'); tbody.innerHTML = '';
         topScores.forEach((entry, i) => { tbody.innerHTML += `<tr><td>0${i+1}</td><td>${entry.name}</td><td>${entry.score}</td><td>${entry.g} m/s²</td></tr>`; });
     }
