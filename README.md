@@ -4,7 +4,7 @@ An interactive web-based physics simulator and educational game based on the **A
 
 ## 🎮 About the Project
 
-This project brings the cutting-edge AEgIS (Antimatter Gravity Interaction Study) experiment to life through an engaging, browser-based simulation. Players take on the role of researchers in the AEgIS lab at CERN's Antiproton Decelerator, progressing through four challenging phases of particle physics experimentation.
+This project brings the cutting-edge AEgIS experiment to life through an engaging, browser-based simulation. Players take on the role of researchers in the AEgIS lab at CERN's Antiproton Decelerator, progressing through four challenging phases of particle physics experimentation.
 
 ### Educational Purpose
 The game educates players about real antimatter physics, including:
