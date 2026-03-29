@@ -2,6 +2,8 @@
 
 An interactive web-based physics simulator and educational game based on the **AEgIS Experiment** at CERN, where players synthesize antihydrogen and measure its gravitational properties.
 
+<video src="https://github.com/user-attachments/assets/b4230451-2570-4eb8-ae35-38d2409db880" controls width="100%"></video>
+
 ## 🎮 About the Project
 
 This project brings the cutting-edge AEgIS experiment to life through an engaging, browser-based simulation. Players take on the role of researchers in the AEgIS lab at CERN's Antiproton Decelerator, progressing through four challenging phases of particle physics experimentation.
