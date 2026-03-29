@@ -2,6 +2,13 @@
 
 An interactive web-based physics simulator and educational game based on the **AEgIS Experiment** at CERN, where players synthesize antihydrogen and measure its gravitational properties.
 
+
+
+# ANNI- (ANtiproton-ANtImatter)
+
+This is ANNI. You will find him in the first stage of the game.
+
+
 <video src="https://github.com/user-attachments/assets/b4230451-2570-4eb8-ae35-38d2409db880" controls width="100%"></video>
 
 ## 🎮 About the Project
