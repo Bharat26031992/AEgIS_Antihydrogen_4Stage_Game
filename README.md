@@ -2,12 +2,9 @@
 
 An interactive web-based physics simulator and educational game based on the **AEgIS Experiment** at CERN, where players synthesize antihydrogen and measure its gravitational properties.
 
-
-
 # ANNI- (ANtiproton-ANtImatter)
 
 This is ANNI. You will find him in the first stage of the game.
-
 
 <video src="https://github.com/user-attachments/assets/b4230451-2570-4eb8-ae35-38d2409db880" controls width="100%"></video>
 
@@ -83,8 +80,8 @@ The in-game notebook provides definitions for key scientific concepts:
 ### Running the Game
 1. Clone this repository:
    ```bash
-   git clone https://github.com/Bharat26031992/AEgIS_Antihydrogen_4Stage_Game.git
-   cd AEgIS_Antihydrogen_4Stage_Game
+   git clone https://github.com/Bharat26031992/AEgIS_Gravity_game.git
+   cd AEgIS_Gravity_game
    ```
 
 2. Open `index.html` in a modern web browser:
